@@ -24,31 +24,39 @@ func VerifyAvailability(protocol string, host string, serverPort string, path st
 	requestURL := fmt.Sprintf("%s://%s:%s%s", protocol, host, serverPort, path)
 
 	logger.Infow("Verifying availability",
-				"Target URL", requestURL,
-			)
+		"Target URL", requestURL,
+	)
 
 	req, err := http.NewRequest(http.MethodGet, requestURL, nil)
 	if err != nil {
-		fmt.Printf("client: could not create request: %s\n", err)
+		logger.Errorw("Could not assable request",
+			"Target URL", requestURL,
+		)
 		return false
 	}
-	fmt.Printf("client: created request!\n")
-	
+
 	client := http.Client{
 		Timeout: 20 * time.Second,
 	}
 	res, err := client.Do(req)
 	if err != nil {
-		fmt.Printf("client: error making http request: %s\n", err)
+		logger.Infow("Node endpoint not availabe",
+			"Target URL", requestURL,
+			"Error", err,
+		)
 		return false
 	}
-
-	fmt.Printf("client: got response!\n")
-	fmt.Printf("client: status code: %d\n", res.StatusCode)
 
 	if condition := res.StatusCode == http.StatusOK; !condition {
-		fmt.Printf("client: status code not OK: %d\n", res.StatusCode)
+		logger.Infow("Node endpoint responded with non-OK status code",
+			"Target URL", requestURL,
+			"HTTP-Code", res.StatusCode,
+		)
 		return false
 	}
+
+	logger.Infow("Node endpoint is available",
+		"Target URL", requestURL,
+	)
 	return true
 }
