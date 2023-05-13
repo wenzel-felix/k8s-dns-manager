@@ -1,19 +1,30 @@
 package main
 
 import (
-	"fmt"
 	"os"
+	"time"
 
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 )
 
-func GetEnvOrDefault(key string, defaultValue string) string {
+var dnsConfig *DNSConfiguration
+var kubernetesClient *kubernetes.Clientset
+
+func init() {
+	dnsConfig = InitDNSConfiguration()
+	kubernetesClient = InitKubernetesClient()
+}
+
+func getEnvOrDefault(key string, defaultValue string) string {
 	value := os.Getenv(key)
 	if value == "" {
 		if defaultValue == "" {
-			fmt.Printf("No value for required variable %s provided\n", key)
+			logger.Infow("Failed to access required variable",
+				"currentTime", time.Now(),
+				"variableName", key,
+			)
 			os.Exit(1)
 		}
 		return defaultValue
@@ -21,15 +32,15 @@ func GetEnvOrDefault(key string, defaultValue string) string {
 	return value
 }
 
-func InitDNSConfiguration() DNSConfiguration {
-	serverPort := GetEnvOrDefault("TARGET_PORT", "80")
-	protocol := GetEnvOrDefault("TARGET_PROTOCOL", "http")
-	path := GetEnvOrDefault("TARGET_PATH", "/healthz")
-	cloudflareDomain := GetEnvOrDefault("CLOUDFLARE_DOMAIN", "")
-	cloudflareToken := GetEnvOrDefault("CLOUDFLARE_TOKEN", "")
-	ingressName := GetEnvOrDefault("INGRESS_NAME", "")
+func InitDNSConfiguration() *DNSConfiguration {
+	serverPort := getEnvOrDefault("TARGET_PORT", "80")
+	protocol := getEnvOrDefault("TARGET_PROTOCOL", "http")
+	path := getEnvOrDefault("TARGET_PATH", "/healthz")
+	cloudflareDomain := getEnvOrDefault("CLOUDFLARE_DOMAIN", "")
+	cloudflareToken := getEnvOrDefault("CLOUDFLARE_TOKEN", "")
+	ingressName := getEnvOrDefault("INGRESS_NAME", "")
 
-	return DNSConfiguration{
+	return &DNSConfiguration{
 		CloudflareDomain: cloudflareDomain,
 		CloudflareToken:  cloudflareToken,
 		TargetPort:       serverPort,
@@ -43,14 +54,18 @@ func InitKubernetesClient() *kubernetes.Clientset {
 	config := &rest.Config{}
 	initErr := error(nil)
 
-	if condition := GetEnvOrDefault("ENVIRONMENT", "PRD") == "DEV"; condition {
-		fmt.Printf("client: using local kubeconfig\n")
+	if condition := getEnvOrDefault("ENVIRONMENT", "PRD") == "DEV"; condition {
+		// logger.Infow("client: using local kubeconfig",
+		// 	"currentTime", time.Now(),
+		// )
 		config, initErr = clientcmd.BuildConfigFromFlags("", "kubeconfig")
 		if initErr != nil {
 			panic(initErr.Error())
 		}
 	} else {
-		fmt.Printf("client: using in-cluster kubeconfig\n")
+		// logger.Infow("client: using in-cluster kubeconfig",
+		// 	"currentTime", time.Now(),
+		// )
 		config, initErr = rest.InClusterConfig()
 		if initErr != nil {
 			panic(initErr.Error())

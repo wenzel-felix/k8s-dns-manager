@@ -4,14 +4,17 @@ import (
 	"context"
 	"fmt"
 	"reflect"
+	"sync"
 
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/kubernetes"
 )
 
-func watchNodeData(clientset *kubernetes.Clientset, dnsConfig DNSConfiguration, nodeEvents chan NodeStatus) {
-	watch, err := clientset.CoreV1().Nodes().Watch(context.TODO(), metav1.ListOptions{})
+var nodes = []NodeStatus{}
+var nodesmu sync.Mutex
+
+func watchNodeData(nodeEvents chan NodeStatus) {
+	watch, err := kubernetesClient.CoreV1().Nodes().Watch(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		fmt.Printf("Error creating watch: %s\n", err)
 		nodeEvents <- NodeStatus{IP: "", EndpointAvailable: false}
@@ -20,7 +23,7 @@ func watchNodeData(clientset *kubernetes.Clientset, dnsConfig DNSConfiguration, 
 
 	for event := range watch.ResultChan() {
 		node := event.Object.(*v1.Node)
-		if filteredNode, condition := filterNode(*node, dnsConfig); condition {
+		if filteredNode, condition := filterNode(*node, *dnsConfig); condition {
 			fmt.Printf("Node: %s is ready\n", node.ObjectMeta.Name)
 			nodeEvents <- filteredNode
 		} else {
@@ -56,14 +59,19 @@ func filterNode(node v1.Node, dnsConfig DNSConfiguration) (NodeStatus, bool) {
 	return filteredNode, false
 }
 
-func replaceNodeIfDifList(newNode NodeStatus, nodes []NodeStatus) ([]NodeStatus, bool) {
+func replaceNodeIfDifList(newNode NodeStatus) (bool) {
+	nodesmu.Lock()
 	for i, node := range nodes {
 		if reflect.DeepEqual(node, newNode) {
-			return nodes, false
+			nodesmu.Unlock()
+			return false
 		} else if node.IP == newNode.IP {
 			nodes[i] = newNode
-			return nodes, true
+			nodesmu.Unlock()
+			return true
 		}
 	}
-	return append(nodes, newNode), true
+	nodes = append(nodes, newNode)
+	nodesmu.Unlock()
+	return true
 }

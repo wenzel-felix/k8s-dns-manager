@@ -1,48 +1,37 @@
 package main
 
-import (
-	"fmt"
-	"time"
-
-	"go.uber.org/zap"
-)
-
-var logger, _ = zap.NewProduction()
-var sugar = logger.Sugar()
-
 func main() {
 	defer logger.Sync()
 
-	dnsConfig := InitDNSConfiguration()
-	kubernetesClient := InitKubernetesClient()
-
-	ingresses := []Ingress{}
-	nodes := []NodeStatus{}
-
-	sugar.Infow("Initialized environment variables",
-		"currentTime", time.Now(),
-	)
+	logger.Infow("Initialized environment variables")
 
 	nodeChannel := make(chan NodeStatus)
 	ingressChannel := make(chan Ingress)
 	update := false
 
-	go watchNodeData(kubernetesClient, dnsConfig, nodeChannel)
-	go watchIngressData(kubernetesClient, dnsConfig, ingressChannel)
+	go watchNodeData(nodeChannel)
+	go watchIngressData(ingressChannel)
 
 	for i := 0; ; i++ {
 		select {
 		case eventNode := <-nodeChannel:
-			nodes, update = replaceNodeIfDifList(eventNode, nodes)
-			fmt.Printf("Node: %s\n", eventNode.IP)
+			update = replaceNodeIfDifList(eventNode)
+			logger.Infow("Received new node event",
+				"node", eventNode.IP,
+				"changes", update,
+			)
 
 		case eventIngress := <-ingressChannel:
-			ingresses, update = replaceIngressIfDifList(eventIngress, ingresses)
-			fmt.Printf("Ingress: %s\n", eventIngress.Domains)
+			update = replaceIngressIfDifList(eventIngress)
+			logger.Infow("Received new ingress event",
+				"ingress", eventIngress.Name,
+				"ingressDomains", eventIngress.Domains,
+				"changes", update,
+			)
 		}
 		if update {
-			fmt.Printf("Update: DNS entries\n")
-			nodes, update = AdjustDNSEntries(ingresses, nodes, dnsConfig)
+			logger.Infow("Adjusting DNS entries")
+			nodes, update = AdjustDNSEntries(ingresses, nodes, *dnsConfig)
 		}
 	}
 }

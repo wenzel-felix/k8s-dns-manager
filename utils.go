@@ -23,7 +23,9 @@ func IsValidIPv4Address(ip string) bool {
 func VerifyAvailability(protocol string, host string, serverPort string, path string) bool {
 	requestURL := fmt.Sprintf("%s://%s:%s%s", protocol, host, serverPort, path)
 
-	fmt.Printf("client: making request to %s\n", requestURL)
+	logger.Infow("Verifying availability",
+				"Target URL", requestURL,
+			)
 
 	req, err := http.NewRequest(http.MethodGet, requestURL, nil)
 	if err != nil {
