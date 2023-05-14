@@ -3,84 +3,143 @@ package main
 import (
 	"context"
 	"fmt"
-	"log"
-
 	"github.com/cloudflare/cloudflare-go"
+	"golang.org/x/exp/slices"
+	"log"
 )
 
-func AdjustDNSEntries(ingresses []Ingress, nodeStatuses []NodeStatus, dnsConfig DNSConfiguration) ([]NodeStatus, bool) {
-	api, err := cloudflare.NewWithAPIToken(dnsConfig.CloudflareToken)
+// initCloudflareClient initializes the Cloudflare client
+func initCloudflareClient() {
+	var err error
+	cloudflareClient, err = cloudflare.NewWithAPIToken(dnsConfig.CloudflareToken)
+	if err != nil {
+		logger.Fatalw("Error initializing Cloudflare client",
+			"error", err,
+		)
+	}
+	zoneID, err := cloudflareClient.ZoneIDByName(dnsConfig.CloudflareDomain)
+	if err != nil {
+		logger.Fatalw("Error retrieving zone ID",
+			"error", err,
+		)
+	}
+	zoneIdentifier = cloudflare.ZoneIdentifier(zoneID)
+}
+
+// generateDNSRecordMap returns a map of IP addresses (targets) to DNS records
+func getDNSRecordMaps(uniqueClusterComment string) (map[string]map[string]cloudflare.DNSRecord, map[string]map[string]cloudflare.DNSRecord) {
+	// Map of hosts => DNS records name => DNS records
+	hostNameRecordMap := make(map[string]map[string]cloudflare.DNSRecord)
+	nameHostRecordMap := make(map[string]map[string]cloudflare.DNSRecord)
+
+	recs, info, err := cloudflareClient.ListDNSRecords(context.Background(),
+		zoneIdentifier,
+		cloudflare.ListDNSRecordsParams{Type: "A",
+			Comment: uniqueClusterComment})
 	if err != nil {
 		log.Fatal(err)
 	}
+	fmt.Printf("Retrieved %d records\n", info.Count)
+	for _, record := range recs {
+		if _, ok := hostNameRecordMap[record.Content]; !ok {
+			hostNameRecordMap[record.Content] = make(map[string]cloudflare.DNSRecord)
+		}
+		hostNameRecordMap[record.Content][record.Name] = record
 
-	zoneID, err := api.ZoneIDByName(dnsConfig.CloudflareDomain)
-	if err != nil {
-		log.Fatal(err)
+		if _, ok := nameHostRecordMap[record.Name]; !ok {
+			nameHostRecordMap[record.Name] = make(map[string]cloudflare.DNSRecord)
+		}
+		nameHostRecordMap[record.Name][record.Content] = record
 	}
-	zoneIdentifier := cloudflare.ZoneIdentifier(zoneID)
+	return hostNameRecordMap, nameHostRecordMap
+}
 
-	domains := []string{}
-	for _, ingress := range ingresses {
-		domains = append(domains, ingress.Domains...)
+// AdjustDNSEntries adjusts the DNS entries in Cloudflare
+func AdjustDNSEntries(ingress Ingress, clusterUID string) bool {
+	uniqueClusterComment := (clusterUID + ", " + ingress.Name)
+	if len(uniqueClusterComment) > 50 {
+		uniqueClusterComment = uniqueClusterComment[:50]
 	}
+	dnshostNameRecordMap, nameHostRecordMap := getDNSRecordMaps(uniqueClusterComment)
 
-	for i, host := range nodeStatuses {
-		if (!host.EndpointAvailable || !host.KubeletAvailable) && host.DomainsConfigured {
-			recs, _, err := api.ListDNSRecords(context.Background(),
-				zoneIdentifier,
-				cloudflare.ListDNSRecordsParams{Type: "A", Content: host.IP})
-			if err != nil {
-				log.Fatal(err)
-			}
-			for _, record := range recs {
-				err := api.DeleteDNSRecord(context.Background(), zoneIdentifier, record.ID)
-				if err != nil {
-					log.Println(err)
-				} else {
-					fmt.Printf("A record deleted: %s => %s\n", record.Name, record.Content)
+	for _, host := range ingress.Targets {
+		hostMap, hostExists := dnshostNameRecordMap[host]
+		if condition := (!hostExists); condition {
+			createOrUpdateDNSRecords(ingress.Domains, []string{host}, uniqueClusterComment)
+		} else {
+			for _, domain := range ingress.Domains {
+				_, hostDomainExists := hostMap[domain]
+
+				if condition := (!hostDomainExists); condition {
+					createOrUpdateDNSRecords([]string{domain}, []string{host}, uniqueClusterComment)
+				} else if condition := (hostDomainExists); condition {
+					fmt.Printf("A record already exists: %s => %s\n", domain, host)
 				}
 			}
-			continue
 		}
+	}
 
-		for _, domain := range domains {
-			fmt.Printf("host: %s, endpoint available: %t, kubelet available: %t, status: %t\n", host.IP, host.EndpointAvailable, host.KubeletAvailable, host.EndpointAvailable || host.KubeletAvailable)
-			recs, info, err := api.ListDNSRecords(context.Background(),
-				zoneIdentifier,
-				cloudflare.ListDNSRecordsParams{Type: "A", Content: host.IP, Name: domain})
-
-			if err != nil {
-				log.Fatal(err)
+	for host, hostDomains := range dnshostNameRecordMap {
+		if !slices.Contains(ingress.Targets, host) {
+			for domain, rec := range hostDomains {
+				fmt.Printf("Deleting A record: %s => %s\n", domain, host)
+				err := cloudflareClient.DeleteDNSRecord(context.Background(), zoneIdentifier, rec.ID)
+				if err != nil {
+					logger.Errorw("Error deleting DNS record",
+						"error", err,
+					)
+				}
 			}
 
-			fmt.Printf("Existing records: %+v\n", info.Count)
+		}
+	}
 
-			if condition := ((host.EndpointAvailable || host.KubeletAvailable) && info.Count == 0); condition {
-				record, err := api.CreateDNSRecord(context.Background(), zoneIdentifier, cloudflare.CreateDNSRecordParams{
+	for domain, domainHosts := range nameHostRecordMap {
+		if !slices.Contains(ingress.Domains, domain) {
+			for host, rec := range domainHosts {
+				fmt.Printf("Deleting A record: %s => %s\n", domain, host)
+				err := cloudflareClient.DeleteDNSRecord(context.Background(), zoneIdentifier, rec.ID)
+				if err != nil {
+					logger.Errorw("Error deleting DNS record",
+						"error", err,
+					)
+				}
+			}
+		}
+	}
+
+	return false
+}
+
+func createOrUpdateDNSRecords(names []string, contents []string, comment string) {
+	for _, name := range names {
+		for _, content := range contents {
+			_, err := cloudflareClient.CreateDNSRecord(context.Background(), zoneIdentifier, cloudflare.CreateDNSRecordParams{
+				Type:    "A",
+				Name:    name,
+				Content: content,
+				Comment: comment,
+			})
+			if err != nil {
+				recs, _, err := cloudflareClient.ListDNSRecords(context.Background(), zoneIdentifier, cloudflare.ListDNSRecordsParams{
 					Type:    "A",
-					Name:    domain,
-					Content: host.IP,
+					Name:    name,
+					Content: content,
 				})
 				if err != nil {
-					log.Println(err)
+					fmt.Printf("Issue syncing the DNS record: %s => %s\n", name, content)
 				} else {
-					fmt.Printf("A record created: %s => %s\n", record.Name, record.Content)
-					nodeStatuses[i].DomainsConfigured = true
-				}
-			} else if condition := (!host.EndpointAvailable && !host.KubeletAvailable && info.Count > 0); condition {
-				for _, record := range recs {
-					err := api.DeleteDNSRecord(context.Background(), zoneIdentifier, record.ID)
+					_, err := cloudflareClient.UpdateDNSRecord(context.Background(),
+						zoneIdentifier,
+						cloudflare.UpdateDNSRecordParams{Type: "A", Name: name, Content: content, Comment: comment, ID: recs[0].ID})
 					if err != nil {
-						log.Println(err)
-					} else {
-						fmt.Printf("A record deleted: %s => %s\n", record.Name, record.Content)
+						log.Fatal(err)
 					}
+					fmt.Printf("A record updated: %s => %s\n", name, content)
 				}
-			} else if condition := ((host.EndpointAvailable || host.KubeletAvailable) && info.Count > 0); condition {
-				fmt.Printf("A record already exists: %s => %s\n", domain, host.IP)
+			} else {
+				fmt.Printf("A record created: %s => %s\n", name, content)
 			}
 		}
 	}
-	return nodeStatuses, false
 }

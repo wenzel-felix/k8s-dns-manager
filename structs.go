@@ -9,14 +9,8 @@ type DNSConfiguration struct {
 	IngressName      string
 }
 
-type NodeStatus struct {
-	IP                string
-	EndpointAvailable bool
-	KubeletAvailable  bool
-	DomainsConfigured bool
-}
-
 type Ingress struct {
 	Name    string
 	Domains []string
+	Targets []string
 }

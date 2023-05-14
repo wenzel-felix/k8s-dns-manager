@@ -13,4 +13,7 @@ docker run -e CLOUDFLARE_TOKEN="<your token>" -e CLOUDFLARE_DOMAIN="<your domain
 ```
 
 ## Open Features
-* Use CloudFlare Tags to check if node is completely gone
+* rearrange project folder structure
+* add logging
+* add availability checks to targets (maybe cluster internal if possible)
+* add tags support for pro plan

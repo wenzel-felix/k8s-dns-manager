@@ -2,27 +2,18 @@ package main
 
 import (
 	"os"
-	"time"
 
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 )
 
-var dnsConfig *DNSConfiguration
-var kubernetesClient *kubernetes.Clientset
-
-func init() {
-	dnsConfig = InitDNSConfiguration()
-	kubernetesClient = InitKubernetesClient()
-}
-
+// a helper function to get environment variables or return a default value
 func getEnvOrDefault(key string, defaultValue string) string {
 	value := os.Getenv(key)
 	if value == "" {
 		if defaultValue == "" {
 			logger.Infow("Failed to access required variable",
-				"currentTime", time.Now(),
 				"variableName", key,
 			)
 			os.Exit(1)
@@ -32,49 +23,55 @@ func getEnvOrDefault(key string, defaultValue string) string {
 	return value
 }
 
-func InitDNSConfiguration() *DNSConfiguration {
-	serverPort := getEnvOrDefault("TARGET_PORT", "80")
+// InitDNSConfiguration initializes the DNSConfiguration struct
+func InitDNSConfiguration() {
+	targetPort := getEnvOrDefault("TARGET_PORT", "80")
 	protocol := getEnvOrDefault("TARGET_PROTOCOL", "http")
 	path := getEnvOrDefault("TARGET_PATH", "/healthz")
 	cloudflareDomain := getEnvOrDefault("CLOUDFLARE_DOMAIN", "")
 	cloudflareToken := getEnvOrDefault("CLOUDFLARE_TOKEN", "")
-	ingressName := getEnvOrDefault("INGRESS_NAME", "")
 
-	return &DNSConfiguration{
+	logger.Infow("Successfully retrieved environment variables", 
+		"targetPort", targetPort,
+		"protocol", protocol,
+		"path", path,
+		"cloudflareDomain", cloudflareDomain,
+		"cloudflareToken", "********",
+	)
+
+	dnsConfig = &DNSConfiguration{
 		CloudflareDomain: cloudflareDomain,
 		CloudflareToken:  cloudflareToken,
-		TargetPort:       serverPort,
+		TargetPort:       targetPort,
 		TargetProtocol:   protocol,
 		TargetPath:       path,
-		IngressName:      ingressName,
 	}
+
+	logger.Infow("Successfully initialized DNSConfiguration struct")
 }
 
-func InitKubernetesClient() *kubernetes.Clientset {
+// InitKubernetesClient initializes the Kubernetes client
+func InitKubernetesClient() {
 	config := &rest.Config{}
 	initErr := error(nil)
 
 	if condition := getEnvOrDefault("ENVIRONMENT", "PRD") == "DEV"; condition {
-		// logger.Infow("client: using local kubeconfig",
-		// 	"currentTime", time.Now(),
-		// )
+		logger.Infow("Using local kubeconfig")
 		config, initErr = clientcmd.BuildConfigFromFlags("", "kubeconfig")
-		if initErr != nil {
-			panic(initErr.Error())
-		}
 	} else {
-		// logger.Infow("client: using in-cluster kubeconfig",
-		// 	"currentTime", time.Now(),
-		// )
+		logger.Infow("Using in-cluster kubeconfig")
 		config, initErr = rest.InClusterConfig()
-		if initErr != nil {
-			panic(initErr.Error())
-		}
+	}
+
+	if initErr != nil {
+		logger.Panicw("Failed to retrieve Kubernetes client config", 
+			"error", initErr,)
 	}
 
 	clientset, err := kubernetes.NewForConfig(config)
 	if err != nil {
-		panic(err.Error())
+		logger.Panicw("Failed to initialize Kubernetes client", 
+			"error", initErr,)
 	}
-	return clientset
+	kubernetesClient = clientset
 }

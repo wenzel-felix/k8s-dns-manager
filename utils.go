@@ -2,22 +2,9 @@ package main
 
 import (
 	"fmt"
-	"net"
 	"net/http"
 	"time"
 )
-
-// returns true if the given string is a valid IPv4 address else it returns false
-func IsValidIPv4Address(ip string) bool {
-	parsedIP := net.ParseIP(ip)
-	if parsedIP == nil {
-		return false
-	}
-	if parsedIP.To4() == nil {
-		return false
-	}
-	return true
-}
 
 // returns true if the given host is available else it returns false
 func VerifyAvailability(protocol string, host string, serverPort string, path string) bool {

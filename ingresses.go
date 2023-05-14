@@ -3,17 +3,13 @@ package main
 import (
 	"context"
 	"os"
-	"reflect"
-	"sync"
 	"time"
 
 	v1networking "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-var ingresses = []Ingress{}
-var ingressesmu sync.Mutex
-
+// watchIngressData watches the Kubernetes API for changes to the ingress data
 func watchIngressData(ingressEvents chan Ingress) {
 	watch, err := kubernetesClient.NetworkingV1().Ingresses("").Watch(context.TODO(), metav1.ListOptions{})
 	if err != nil {
@@ -27,37 +23,18 @@ func watchIngressData(ingressEvents chan Ingress) {
 	for event := range watch.ResultChan() {
 		ingress := event.Object.(*v1networking.Ingress)
 		domains := []string{}
-		if condition := ingress.ObjectMeta.Name == dnsConfig.IngressName; condition {
-			for _, rule := range ingress.Spec.TLS {
-				domains = rule.Hosts
+		targets := []string{}
+
+		for _, rule := range ingress.Spec.TLS {
+			domains = rule.Hosts
+		}
+
+		for _, target := range ingress.Status.LoadBalancer.Ingress {
+			if target.IP != "" {
+				targets = append(targets, target.IP)
 			}
 		}
-		ingressEvents <- Ingress{Name: ingress.Name, Domains: domains}
-	}
-}
 
-func replaceIngressIfDifList(newIngress Ingress) (bool) {
-	ingressesmu.Lock()
-	for i, ingress := range ingresses {
-		if reflect.DeepEqual(ingress, newIngress) {
-			logger.Infow("No change in ingress data",
-				"currentTime", time.Now(),
-			)
-			ingressesmu.Unlock()
-			return false
-		} else if ingress.Name == newIngress.Name {
-			ingresses[i] = newIngress
-			logger.Infow("Replaced ingress due to change in ingress data",
-				"currentTime", time.Now(),
-			)
-			ingressesmu.Unlock()
-			return true
-		}
+		ingressEvents <- Ingress{Name: ingress.Name, Domains: domains, Targets: targets}
 	}
-	logger.Infow("New ingress added",
-		"currentTime", time.Now(),
-	)
-	ingresses = append(ingresses, newIngress)
-	ingressesmu.Unlock()
-	return true
 }
