@@ -20,11 +20,12 @@ func watchIngressData(ingressEvents chan Ingress) {
 
 	for event := range watch.ResultChan() {
 		ingress := event.Object.(*v1networking.Ingress)
+
 		domains := []string{}
 		targets := []string{}
 
-		for _, rule := range ingress.Spec.TLS {
-			domains = rule.Hosts
+		for _, rule := range ingress.Spec.Rules {
+			domains = append(domains, rule.Host)
 		}
 
 		for _, target := range ingress.Status.LoadBalancer.Ingress {
@@ -32,6 +33,11 @@ func watchIngressData(ingressEvents chan Ingress) {
 				targets = append(targets, target.IP)
 			}
 		}
+		logger.Infow("Received new ingress event",
+			"ingress", ingress.Name,
+			"ingressDomains", domains,
+			"ingressTargets", targets,
+		)
 
 		ingressEvents <- Ingress{Name: ingress.Name, Domains: domains, Targets: targets}
 	}
