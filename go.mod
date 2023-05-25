@@ -1,4 +1,4 @@
-module github.com/wenzel-felix/k8s-cloudflare-dns-loadbalancer
+module github.com/wenzel-felix/k8s-dns-manager
 
 go 1.18
 
