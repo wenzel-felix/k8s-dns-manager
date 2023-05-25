@@ -5,7 +5,7 @@ func main() {
 
 	ingressChannel := make(chan Ingress)
 	update := false
-	clusterUID := GetUniqueClusterIdentifier()
+	clusterUID := getUniqueClusterIdentifier()
 
 	go watchIngressData(ingressChannel)
 
@@ -17,7 +17,7 @@ func main() {
 				"ingressDomains", eventIngress.Domains,
 				"changes", update,
 			)
-			AdjustDNSEntries(eventIngress, clusterUID)
+			adjustDNSEntries(eventIngress, clusterUID)
 		}
 	}
 }

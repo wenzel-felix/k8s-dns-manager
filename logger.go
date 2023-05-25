@@ -12,4 +12,5 @@ func initLogger() {
 		panic(err)
 	}
 	logger = zaplogger.Sugar()
+	logger.Infow("Initialized logger")
 }

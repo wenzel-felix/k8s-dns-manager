@@ -23,8 +23,8 @@ func getEnvOrDefault(key string, defaultValue string) string {
 	return value
 }
 
-// InitDNSConfiguration initializes the DNSConfiguration struct
-func InitDNSConfiguration() {
+// initDNSConfiguration initializes the DNSConfiguration struct
+func initDNSConfiguration() {
 	targetPort := getEnvOrDefault("TARGET_PORT", "80")
 	protocol := getEnvOrDefault("TARGET_PROTOCOL", "http")
 	path := getEnvOrDefault("TARGET_PATH", "/healthz")
@@ -50,8 +50,8 @@ func InitDNSConfiguration() {
 	logger.Infow("Successfully initialized DNSConfiguration struct")
 }
 
-// InitKubernetesClient initializes the Kubernetes client
-func InitKubernetesClient() {
+// initKubernetesClient initializes the Kubernetes client
+func initKubernetesClient() {
 	config := &rest.Config{}
 	initErr := error(nil)
 

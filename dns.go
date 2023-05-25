@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"github.com/cloudflare/cloudflare-go"
 	"golang.org/x/exp/slices"
 	"log"
@@ -24,6 +23,9 @@ func initCloudflareClient() {
 		)
 	}
 	zoneIdentifier = cloudflare.ZoneIdentifier(zoneID)
+	logger.Infow("Initialized Cloudflare client",
+		"domain", dnsConfig.CloudflareDomain,
+	)
 }
 
 // generateDNSRecordMap returns a map of IP addresses (targets) to DNS records
@@ -39,7 +41,9 @@ func getDNSRecordMaps(uniqueClusterComment string) (map[string]map[string]cloudf
 	if err != nil {
 		log.Fatal(err)
 	}
-	fmt.Printf("Retrieved %d records\n", info.Count)
+	logger.Infow("Retrieved DNS records",
+		"count", info.Count,
+	)
 	for _, record := range recs {
 		if _, ok := hostNameRecordMap[record.Content]; !ok {
 			hostNameRecordMap[record.Content] = make(map[string]cloudflare.DNSRecord)
@@ -54,8 +58,8 @@ func getDNSRecordMaps(uniqueClusterComment string) (map[string]map[string]cloudf
 	return hostNameRecordMap, nameHostRecordMap
 }
 
-// AdjustDNSEntries adjusts the DNS entries in Cloudflare
-func AdjustDNSEntries(ingress Ingress, clusterUID string) bool {
+// adjustDNSEntries adjusts the DNS entries in Cloudflare
+func adjustDNSEntries(ingress Ingress, clusterUID string) bool {
 	uniqueClusterComment := (clusterUID + ", " + ingress.Name)
 	if len(uniqueClusterComment) > 50 {
 		uniqueClusterComment = uniqueClusterComment[:50]
@@ -73,7 +77,10 @@ func AdjustDNSEntries(ingress Ingress, clusterUID string) bool {
 				if condition := (!hostDomainExists); condition {
 					createOrUpdateDNSRecords([]string{domain}, []string{host}, uniqueClusterComment)
 				} else if condition := (hostDomainExists); condition {
-					fmt.Printf("A record already exists: %s => %s\n", domain, host)
+					logger.Infow("A record already exists",
+						"domain", domain,
+						"host", host,
+					)
 				}
 			}
 		}
@@ -82,7 +89,10 @@ func AdjustDNSEntries(ingress Ingress, clusterUID string) bool {
 	for host, hostDomains := range dnshostNameRecordMap {
 		if !slices.Contains(ingress.Targets, host) {
 			for domain, rec := range hostDomains {
-				fmt.Printf("Deleting A record: %s => %s\n", domain, host)
+				logger.Infow("Deleting A record",
+					"domain", domain,
+					"host", host,
+				)
 				err := cloudflareClient.DeleteDNSRecord(context.Background(), zoneIdentifier, rec.ID)
 				if err != nil {
 					logger.Errorw("Error deleting DNS record",
@@ -97,7 +107,10 @@ func AdjustDNSEntries(ingress Ingress, clusterUID string) bool {
 	for domain, domainHosts := range nameHostRecordMap {
 		if !slices.Contains(ingress.Domains, domain) {
 			for host, rec := range domainHosts {
-				fmt.Printf("Deleting A record: %s => %s\n", domain, host)
+				logger.Infow("Deleting A record",
+					"domain", domain,
+					"host", host,
+				)
 				err := cloudflareClient.DeleteDNSRecord(context.Background(), zoneIdentifier, rec.ID)
 				if err != nil {
 					logger.Errorw("Error deleting DNS record",
@@ -127,18 +140,28 @@ func createOrUpdateDNSRecords(names []string, contents []string, comment string)
 					Content: content,
 				})
 				if err != nil {
-					fmt.Printf("Issue syncing the DNS record: %s => %s\n", name, content)
+					logger.Errorw("Error syncing DNS record",
+						"error", err,
+					)
 				} else {
 					_, err := cloudflareClient.UpdateDNSRecord(context.Background(),
 						zoneIdentifier,
 						cloudflare.UpdateDNSRecordParams{Type: "A", Name: name, Content: content, Comment: comment, ID: recs[0].ID})
 					if err != nil {
-						log.Fatal(err)
+						logger.Errorw("Error updating DNS record",
+							"error", err,
+						)
 					}
-					fmt.Printf("A record updated: %s => %s\n", name, content)
+					logger.Infow("A record updated",
+						"domain", name,
+						"host", content,
+					)
 				}
 			} else {
-				fmt.Printf("A record created: %s => %s\n", name, content)
+				logger.Infow("A record created",
+					"domain", name,
+					"host", content,
+				)
 			}
 		}
 	}

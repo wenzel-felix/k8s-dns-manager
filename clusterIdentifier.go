@@ -6,8 +6,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// GetUniqueClusterIdentifier returns the UID of the kube-system namespace
-func GetUniqueClusterIdentifier() string {
+// getUniqueClusterIdentifier returns the UID of the kube-system namespace
+func getUniqueClusterIdentifier() string {
 	namespace, err := kubernetesClient.CoreV1().Namespaces().Get(context.Background(), "kube-system", metav1.GetOptions{})
 	if err != nil {
 		logger.Panicw("Error retrieving cluster identifier",

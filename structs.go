@@ -6,7 +6,6 @@ type DNSConfiguration struct {
 	TargetPort       string
 	TargetProtocol   string
 	TargetPath       string
-	IngressName      string
 }
 
 type Ingress struct {

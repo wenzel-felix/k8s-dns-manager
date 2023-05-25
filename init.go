@@ -12,7 +12,7 @@ var kubernetesClient *kubernetes.Clientset
 
 func init() {
 	initLogger()
-	InitDNSConfiguration()
+	initDNSConfiguration()
 	initCloudflareClient()
-	InitKubernetesClient()
+	initKubernetesClient()
 }

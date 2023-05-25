@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"os"
 	"time"
 
 	v1networking "k8s.io/api/networking/v1"
@@ -13,10 +12,9 @@ import (
 func watchIngressData(ingressEvents chan Ingress) {
 	watch, err := kubernetesClient.NetworkingV1().Ingresses("").Watch(context.TODO(), metav1.ListOptions{})
 	if err != nil {
-		logger.Infow("Error creating event watch for ingress data",
+		logger.Fatalw("Error creating event watch for ingress data",
 			"currentTime", time.Now(),
 		)
-		os.Exit(1)
 	}
 	defer watch.Stop()
 
