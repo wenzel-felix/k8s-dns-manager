@@ -1,18 +1,23 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: dns-updater
+  name: dns-manager
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: dns-updater
+      app: dns-manager
   template:
     metadata:
       labels:
-        app: dns-updater
+        app: dns-manager
     spec:
       containers:
-      - name: dns-updater
-        image: myapp:latest
-      serviceAccountName: dns-updater
+      - name: dns-manager
+        image: ghcr.io/wenzel-felix/k8s-dns-manager:v0.0.1
+        env:
+        - name: CLOUDFLARE_DOMAIN
+          value: <your domain>
+        - name: CLOUDFLARE_TOKEN
+          value: <your token>
+      serviceAccountName: dns-manager

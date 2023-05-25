@@ -3,14 +3,15 @@ package main
 func main() {
 	defer logger.Sync()
 
-	ingressChannel := make(chan Ingress)
+	ingressEventChannel := make(chan Ingress)
 	clusterUID := getUniqueClusterIdentifier()
 
-	go watchIngressData(ingressChannel)
+	go watchIngressData(ingressEventChannel)
+	go createIngressRoutine(ingressEventChannel)
 
 	for i := 0; ; i++ {
 		select {
-		case eventIngress := <-ingressChannel:
+		case eventIngress := <-ingressEventChannel:
 			adjustDNSEntries(eventIngress, clusterUID)
 		}
 	}
