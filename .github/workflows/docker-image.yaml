@@ -43,13 +43,16 @@ jobs:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
 
       - name: Parse metadata
+        id: parse
         run: |
-          echo "${{ steps.meta.outputs.tags }}" | sed 's/imageRelease-//g'
+          LATEST_TAG=$(echo "${{ steps.meta.outputs.tags }}" | sed 's/imageRelease-*./latest/g')
+          VERSION_TAG=$(echo "${{ steps.meta.outputs.tags }}" | sed 's/imageRelease-//g')
+          echo "custom_tags=$VERSION_TAG,$LATEST_TAG" >> $GITHUB_OUTPUT
 
       - name: Build and push Docker image
         uses: docker/build-push-action@f2a1d5e99d037542a71f64918e516c093c6f3fc4
         with:
           context: .
           push: true
-          tags: ${{ steps.meta.outputs.tags }}
+          tags: ${{ steps.parse.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
