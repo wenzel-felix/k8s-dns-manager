@@ -1,20 +1,40 @@
-## Usage
+# k8s-dns-manager
 
-[Helm](https://helm.sh) must be installed to use the charts.  Please refer to
-Helm's [documentation](https://helm.sh/docs) to get started.
+This Helm chart provides a Kubernetes-native solution for managing DNS entries based on ingresses. The chart includes a Kubernetes controller that watches for changes to ingresses and automatically updates DNS records to reflect the current state of the cluster. 
 
-Once Helm has been set up correctly, add the repo as follows:
+## Get Repository Info
 
-  helm repo add <alias> https://<orgname>.github.io/helm-charts
+```console
+helm repo add k8s-dns-manager https://wenzel-felix.github.io/k8s-dns-manager/
+helm repo update
+```
 
-If you had already added this repo earlier, run `helm repo update` to retrieve
-the latest versions of the packages.  You can then run `helm search repo
-<alias>` to see the charts.
+_See [`helm repo`](https://helm.sh/docs/helm/helm_repo/) for command documentation._
 
-To install the <chart-name> chart:
+## Install Chart
 
-    helm install my-<chart-name> <alias>/<chart-name>
+```console
+helm install [RELEASE_NAME] k8s-dns-manager/k8s-dns-manager
+```
 
-To uninstall the chart:
+_See [configuration](#configuring) below._
 
-    helm delete my-<chart-name>
+_See [helm install](https://helm.sh/docs/helm/helm_install/) for command documentation._
+
+## Uninstall Chart
+
+```console
+helm uninstall [RELEASE_NAME]
+```
+
+This removes all the Kubernetes components associated with the chart and deletes the release.
+
+_See [helm uninstall](https://helm.sh/docs/helm/helm_uninstall/) for command documentation._
+
+## Upgrading Chart
+
+```console
+helm upgrade [RELEASE_NAME] [CHART] --install
+```
+
+_See [helm upgrade](https://helm.sh/docs/helm/helm_upgrade/) for command documentation._
