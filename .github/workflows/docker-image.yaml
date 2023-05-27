@@ -44,7 +44,7 @@ jobs:
 
       - name: Parse metadata
         run: |
-          echo "${${{ steps.meta.outputs.tags }}/imageRelease-/now}"
+          echo "${{ steps.meta.outputs.tags }}" | sed 's/imageRelease-//g'
 
       - name: Build and push Docker image
         uses: docker/build-push-action@f2a1d5e99d037542a71f64918e516c093c6f3fc4
