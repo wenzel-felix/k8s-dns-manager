@@ -1,6 +1,8 @@
 deployment:
   name: k8s-dns-manager
   namespace: k8s-dns-manager
+  image:
+    tag: v0.0.2
 
 cloudflare:
   domain: <your domain>
