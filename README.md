@@ -1,19 +1,20 @@
+## Usage
 
+[Helm](https://helm.sh) must be installed to use the charts.  Please refer to
+Helm's [documentation](https://helm.sh/docs) to get started.
 
-## Required for testing
-* running kubernetes cluster with a ingress installed
-* kubeconfig file to connect to the cluster
+Once Helm has been set up correctly, add the repo as follows:
 
-## Local Docker Testing
-```
-# copy your kubeconfig file in the root project directory, like 
-# cp ~/.kube/config kubeconfig
-docker build -f DockerfileLocalKubeconfig --tag small .
-docker run -e CLOUDFLARE_TOKEN="<your token>" -e CLOUDFLARE_DOMAIN="<your domain>" -e INGRESS_NAME="<name of your ingress>" -e ENVIRONMENT="DEV" small
-```
+  helm repo add <alias> https://<orgname>.github.io/helm-charts
 
-## Open Features
-* rearrange project folder structure
-* add logging
-* add availability checks to targets (maybe cluster internal if possible)
-* add tags support for pro plan
+If you had already added this repo earlier, run `helm repo update` to retrieve
+the latest versions of the packages.  You can then run `helm search repo
+<alias>` to see the charts.
+
+To install the <chart-name> chart:
+
+    helm install my-<chart-name> <alias>/<chart-name>
+
+To uninstall the chart:
+
+    helm delete my-<chart-name>

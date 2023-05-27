@@ -1,7 +1,0 @@
-deployment:
-  name: k8s-dns-manager
-  namespace: k8s-dns-manager
-
-cloudflare:
-  domain: <your domain>
-  token: <your token>
