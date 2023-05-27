@@ -45,7 +45,7 @@ jobs:
       - name: Parse metadata
         id: parse
         run: |
-          LATEST_TAG=$(echo "${{ steps.meta.outputs.tags }}" | sed 's/imageRelease-*./latest/g')
+          LATEST_TAG=$(echo "${{ steps.meta.outputs.tags }}" | sed 's/imageRelease-.*/latest/g')
           VERSION_TAG=$(echo "${{ steps.meta.outputs.tags }}" | sed 's/imageRelease-//g')
           echo "custom_tags=$VERSION_TAG,$LATEST_TAG" >> $GITHUB_OUTPUT
 
