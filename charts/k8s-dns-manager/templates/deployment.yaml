@@ -1,0 +1,24 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.deployment.name }}
+  namespace: {{ .Values.deployment.namespace }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: {{ .Values.deployment.name }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.deployment.name }}
+    spec:
+      containers:
+      - name: {{ .Values.deployment.name }}
+        image: ghcr.io/wenzel-felix/k8s-dns-manager:v0.0.1
+        env:
+        - name: CLOUDFLARE_DOMAIN
+          value: {{ .Values.cloudflare.domain }}
+        - name: CLOUDFLARE_TOKEN
+          value: {{ .Values.cloudflare.token }}
+      serviceAccountName: {{ .Values.deployment.name }}
