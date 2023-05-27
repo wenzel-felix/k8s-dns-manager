@@ -1,0 +1,6 @@
+{{ if .Values.deployment.createNamespace }}
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: {{ .Values.deployment.namespace }}
+{{ end }}
