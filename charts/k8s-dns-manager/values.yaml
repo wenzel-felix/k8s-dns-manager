@@ -1,7 +1,12 @@
 deployment:
   name: k8s-dns-manager
   namespace: k8s-dns-manager
+  createNamespace: true
+  image:
+    tag: v0.0.2
 
 cloudflare:
+  # The domain to manage DNS records for (e.g. example.com)
   domain: <your domain>
+  # The Cloudflare API token to use for authentication (needs to have permissions to manage DNS zone)
   token: <your token>

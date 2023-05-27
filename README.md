@@ -9,7 +9,7 @@
 # copy your kubeconfig file in the root project directory, like 
 # cp ~/.kube/config kubeconfig
 docker build -f DockerfileLocalKubeconfig --tag small .
-docker run -e CLOUDFLARE_TOKEN="<your token>" -e CLOUDFLARE_DOMAIN="<your domain>" -e INGRESS_NAME="<name of your ingress>" -e ENVIRONMENT="DEV" small
+docker run -e CLOUDFLARE_TOKEN="<your token>" -e CLOUDFLARE_DOMAIN="<your domain>" -e ENVIRONMENT="DEV" small
 ```
 
 ## Open Features
