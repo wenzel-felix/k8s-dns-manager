@@ -28,19 +28,17 @@ func initDNSConfiguration() {
 	targetPort := getEnvOrDefault("TARGET_PORT", "80")
 	protocol := getEnvOrDefault("TARGET_PROTOCOL", "http")
 	path := getEnvOrDefault("TARGET_PATH", "/healthz")
-	cloudflareDomain := getEnvOrDefault("CLOUDFLARE_DOMAIN", "")
 	cloudflareToken := getEnvOrDefault("CLOUDFLARE_TOKEN", "")
+	cloudflareTokenEnd  := cloudflareToken[len(cloudflareToken)-4:]
 
 	logger.Infow("Successfully retrieved environment variables", 
 		"targetPort", targetPort,
 		"protocol", protocol,
 		"path", path,
-		"cloudflareDomain", cloudflareDomain,
-		"cloudflareToken", "********",
+		"cloudflareToken", "********" + cloudflareTokenEnd,
 	)
 
 	dnsConfig = &DNSConfiguration{
-		CloudflareDomain: cloudflareDomain,
 		CloudflareToken:  cloudflareToken,
 		TargetPort:       targetPort,
 		TargetProtocol:   protocol,
@@ -55,17 +53,19 @@ func initKubernetesClient() {
 	config := &rest.Config{}
 	initErr := error(nil)
 
-	if condition := getEnvOrDefault("ENVIRONMENT", "PRD") == "DEV"; condition {
-		logger.Infow("Using local kubeconfig")
-		config, initErr = clientcmd.BuildConfigFromFlags("", "kubeconfig")
-	} else {
-		logger.Infow("Using in-cluster kubeconfig")
-		config, initErr = rest.InClusterConfig()
-	}
+	logger.Infow("Using in-cluster kubeconfig")
+	config, initErr = rest.InClusterConfig()
 
 	if initErr != nil {
-		logger.Panicw("Failed to retrieve Kubernetes client config", 
-			"error", initErr,)
+		logger.Infow("Failed to retrieve in-cluster Kubernetes client config. Falling back to local kubeconfig",
+			"error", initErr,
+		)
+		config, initErr = clientcmd.BuildConfigFromFlags("", "kubeconfig")
+		if initErr != nil {
+			logger.Panicw("Failed to retrieve local Kubernetes client config",
+				"error", initErr,
+			)
+		}
 	}
 
 	clientset, err := kubernetes.NewForConfig(config)

@@ -12,7 +12,7 @@ func main() {
 	for i := 0; ; i++ {
 		select {
 		case eventIngress := <-ingressEventChannel:
-			adjustDNSEntries(eventIngress, clusterUID)
+			adjustDNSZonesOrchestrator(eventIngress, clusterUID)
 		}
 	}
 }

@@ -6,7 +6,7 @@ import (
 )
 
 var cloudflareClient *cloudflare.API
-var zoneIdentifier *cloudflare.ResourceContainer
+var zones []cloudflare.Zone
 var dnsConfig *DNSConfiguration
 var kubernetesClient *kubernetes.Clientset
 
