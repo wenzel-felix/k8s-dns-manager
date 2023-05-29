@@ -26,7 +26,7 @@ metadata:
     nginx.ingress.kubernetes.io/rewrite-target: /$1
 spec:
   rules:
-    - host: test.hetznerdoesnot.work
+    - host: test.felixwenzel.xyz
       http:
         paths:
           - path: /
@@ -36,7 +36,7 @@ spec:
                 name: web
                 port:
                   number: 8080
-    - host: test1.hetznerdoesnot.work
+    - host: test.test1.hetznerdoesnot.work
       http:
         paths:
           - path: /
