@@ -17,6 +17,12 @@ func initCloudflareClient() {
 			"error", err,
 		)
 	}
+	updateZones()
+	logger.Infow("Initialized Cloudflare client")
+}
+
+func updateZones() {
+	var err error
 	zones, err = cloudflareClient.ListZones(context.Background())
 	if err != nil {
 		logger.Fatalw("Error retrieving zone ID",
@@ -27,10 +33,27 @@ func initCloudflareClient() {
 	for _, zone := range zones {
 		zoneNames = append(zoneNames, zone.Name)
 	}
-
-	logger.Infow("Initialized Cloudflare client",
-		"zones", zoneNames,
+	logger.Infow("Refreshed Cloudflare zones",
+		"currentZones", zoneNames,
 	)
+}
+
+// adjustDNSEntries adjusts the DNS entries in Cloudflare
+func adjustDNSZonesOrchestrator(ingress Ingress, clusterUID string) {
+	updateZones()
+	uniqueClusterComment := (clusterUID + ", " + ingress.Name)
+	if len(uniqueClusterComment) > 50 {
+		uniqueClusterComment = uniqueClusterComment[:50]
+	}
+
+	for _, zone := range zones {
+		go adjustDNSZone(zone, ingress, uniqueClusterComment)
+	}
+}
+
+// check if subdomain is part of domain
+func isSubdomain(domain string, subdomain string) bool {
+	return domain == subdomain || strings.HasSuffix(subdomain, "."+domain)
 }
 
 // generateDNSRecordMap returns a map of IP addresses (targets) to DNS records
@@ -65,23 +88,6 @@ func getDNSRecordMaps(uniqueClusterComment string, zoneIdentifier *cloudflare.Re
 		nameHostRecordMap[record.Name][record.Content] = record
 	}
 	return hostNameRecordMap, nameHostRecordMap
-}
-
-// adjustDNSEntries adjusts the DNS entries in Cloudflare
-func adjustDNSZonesOrchestrator(ingress Ingress, clusterUID string) {
-	uniqueClusterComment := (clusterUID + ", " + ingress.Name)
-	if len(uniqueClusterComment) > 50 {
-		uniqueClusterComment = uniqueClusterComment[:50]
-	}
-
-	for _, zone := range zones {
-		go adjustDNSZone(zone, ingress, uniqueClusterComment)
-	}
-}
-
-// check if subdomain is part of domain
-func isSubdomain(domain string, subdomain string) bool {
-	return domain == subdomain || strings.HasSuffix(subdomain, "."+domain)
 }
 
 func adjustDNSZone(zone cloudflare.Zone, ingress Ingress, uniqueClusterComment string) {
