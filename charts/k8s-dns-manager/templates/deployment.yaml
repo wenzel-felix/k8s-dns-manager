@@ -17,7 +17,7 @@ spec:
       - name: {{ .Values.deployment.name }}
         image: ghcr.io/wenzel-felix/k8s-dns-manager:{{ .Values.deployment.image.tag }}
         env:
-          - name: CLOUDFLARE_API_TOKEN
+          - name: CLOUDFLARE_TOKEN
             valueFrom:
               secretKeyRef:
                 name: cloudflare-token
