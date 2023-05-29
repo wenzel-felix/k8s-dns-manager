@@ -64,8 +64,7 @@ func getDNSRecordMaps(uniqueClusterComment string, zoneIdentifier *cloudflare.Re
 
 	recs, info, err := cloudflareClient.ListDNSRecords(context.Background(),
 		zoneIdentifier,
-		cloudflare.ListDNSRecordsParams{Type: "A",
-			Comment: uniqueClusterComment})
+		cloudflare.ListDNSRecordsParams{Comment: uniqueClusterComment})
 	if err != nil {
 		logger.Fatalw("Error retrieving DNS records",
 			"zone", zoneName,
@@ -148,15 +147,24 @@ func createOrUpdateDNSRecords(names []string, contents []string, comment string,
 	for _, name := range names {
 		for _, content := range contents {
 			if isSubdomain(zoneName, name) {
-				_, err := cloudflareClient.CreateDNSRecord(context.Background(), zoneIdentifier, cloudflare.CreateDNSRecordParams{
-					Type:    "A",
+				typeName, err := getDNStype(content)
+
+				if err != nil {
+					logger.Errorw("Error getting DNS type",
+						"error", err,
+					)
+					break
+				}
+
+				_, err = cloudflareClient.CreateDNSRecord(context.Background(), zoneIdentifier, cloudflare.CreateDNSRecordParams{
+					Type:    typeName,
 					Name:    name,
 					Content: content,
 					Comment: comment,
 				})
 				if err != nil {
 					recs, _, err := cloudflareClient.ListDNSRecords(context.Background(), zoneIdentifier, cloudflare.ListDNSRecordsParams{
-						Type:    "A",
+						Type:    typeName,
 						Name:    name,
 						Content: content,
 					})
@@ -167,7 +175,7 @@ func createOrUpdateDNSRecords(names []string, contents []string, comment string,
 					} else {
 						_, err := cloudflareClient.UpdateDNSRecord(context.Background(),
 							zoneIdentifier,
-							cloudflare.UpdateDNSRecordParams{Type: "A", Name: name, Content: content, Comment: comment, ID: recs[0].ID})
+							cloudflare.UpdateDNSRecordParams{Type: typeName, Name: name, Content: content, Comment: comment, ID: recs[0].ID})
 						if err != nil {
 							logger.Errorw("Error updating DNS record",
 								"error", err,
