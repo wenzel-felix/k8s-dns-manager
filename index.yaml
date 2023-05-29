@@ -3,6 +3,18 @@ entries:
   k8s-dns-manager:
   - apiVersion: v2
     appVersion: v0.0.4
+    created: "2023-05-29T13:33:40.192247164Z"
+    description: This Helm chart provides a Kubernetes-native solution for managing
+      DNS entries based on ingresses. The chart includes a Kubernetes controller that
+      watches for changes to ingresses and automatically updates DNS records to reflect
+      the current state of the cluster.
+    digest: 911111ba4e0fd2d0fca5d29266bfffed43dedafaf9e9f6eec24a1f73dbcc30f1
+    name: k8s-dns-manager
+    urls:
+    - https://github.com/wenzel-felix/k8s-dns-manager/releases/download/k8s-dns-manager-v0.0.5/k8s-dns-manager-v0.0.5.tgz
+    version: v0.0.5
+  - apiVersion: v2
+    appVersion: v0.0.4
     created: "2023-05-29T13:16:19.455937433Z"
     description: This Helm chart provides a Kubernetes-native solution for managing
       DNS entries based on ingresses. The chart includes a Kubernetes controller that
@@ -37,4 +49,4 @@ entries:
     urls:
     - https://github.com/wenzel-felix/k8s-dns-manager/releases/download/k8s-dns-manager-v0.0.2/k8s-dns-manager-v0.0.2.tgz
     version: v0.0.2
-generated: "2023-05-29T13:16:19.455948133Z"
+generated: "2023-05-29T13:33:40.192261564Z"
